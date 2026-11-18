@@ -1,17 +1,13 @@
-# secrets / build
-firmware/include/secrets.h
-firmware/.env
-.pio/
-build/
-*.bin
-*.elf
-*.map
-
-# bridge
+# Configuración real (tiene tokens): nunca al repo.
 bridge/.env
-bridge/venv/
+*.env
+!bridge/.env.example
+
+# Python
 __pycache__/
 *.pyc
+.pytest_cache/
 
-# sistema
+# Sistema
+*.log
 .DS_Store

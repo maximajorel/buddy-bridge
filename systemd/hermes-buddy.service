@@ -1,0 +1,22 @@
+[Unit]
+Description=Hermes Buddy bridge (ESP32 <-> Hermes API server)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# La config se lee del .env del repo (o de HERMES_BUDDY_ENV_FILE si está seteada).
+# No se usa EnvironmentFile= porque el parser del bridge valida y reporta todo
+# junto; systemd cortaría el arranque en el primer error sin explicar los demás.
+WorkingDirectory=/opt/buddy
+Environment=PYTHONUNBUFFERED=1
+Environment=HERMES_BUDDY_ENV_FILE=/opt/buddy/.env
+ExecStart=/usr/bin/python3 -m zymo_bridge
+Restart=always
+RestartSec=5
+User=root
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
