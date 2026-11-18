@@ -67,8 +67,19 @@ class EventLog:
         """Respuesta completa de `GET /events?since=N&wait=T`, con `resync` si hace falta."""
         with self._cond:
             current = self._seq
+            oldest = self._events[0]["seq"] if self._events else self._seq
+        # Cursor del futuro: el cliente pide un `seq` que este proceso nunca emitió
+        # (sobrevivió a un reinicio del bridge, cuyo contador vuelve a 0). Es
+        # exactamente el caso del bug del 2026-11-18: la placa quedó pidiendo 102
+        # contra un ring que iba por 47, y como `wait` filtra por `seq > since` no
+        # había nada nuevo que devolver, así que el long-poll se cerraba vacío tras
+        # 25 s y la cara se congelaba en "pensando". Se responde lo que hay más un
+        # `resync` para que la placa relea `/state` y adopte el seq real.
         if since > current:
-            since = current
+            events = self.pending(oldest - 1)
+            return events + [{"seq": current, "event": "resync",
+                              "ts": round(time.time(), 3), "ev_seq": current,
+                              "reason": "cursor-ahead"}]
         events = self.wait(since, timeout)
         with self._cond:
             oldest = self._events[0]["seq"] if self._events else self._seq

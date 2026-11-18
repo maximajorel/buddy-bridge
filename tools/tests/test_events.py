@@ -32,11 +32,24 @@ class EventLogTest(unittest.TestCase):
             log.emit("n", i=i)
         self.assertEqual([e["i"] for e in log.pending(0)], [3, 4])
 
-    def test_cursor_del_futuro_arranca_del_actual(self):
+    def test_cursor_del_futuro_devuelve_lo_pendiente_y_pide_resync(self):
+        # Bug del 2026-11-18: tras reiniciar el bridge el contador vuelve a 0 y la
+        # placa sigue pidiendo `since=102`. Antes se devolvía [] para siempre y la
+        # cara quedaba congelada en "pensando".
         log = EventLog()
         log.emit("a")
         log.emit("b")
-        self.assertEqual(log.since_request(999, 0), [])
+        events = log.since_request(999, 0)
+        self.assertEqual([e["event"] for e in events], ["a", "b", "resync"])
+        self.assertEqual(events[-1]["reason"], "cursor-ahead")
+        self.assertEqual(events[-1]["seq"], log.seq)
+
+    def test_cursor_del_futuro_no_espera_el_timeout(self):
+        log = EventLog()
+        log.emit("a")
+        started = time.monotonic()
+        log.since_request(500, 25)
+        self.assertLess(time.monotonic() - started, 1)
 
     def test_cursor_perdido_devuelve_resync(self):
         log = EventLog(1)
