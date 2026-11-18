@@ -1,0 +1,17 @@
+# secrets / build
+firmware/include/secrets.h
+firmware/.env
+.pio/
+build/
+*.bin
+*.elf
+*.map
+
+# bridge
+bridge/.env
+bridge/venv/
+__pycache__/
+*.pyc
+
+# sistema
+.DS_Store
