@@ -7,10 +7,10 @@ cosas con un botón. Python puro de stdlib: sin pip, sin venv, sin dependencias.
 
 ```bash
 cp bridge/.env.example bridge/.env   # y completar los tokens
-python3 -m zymo_bridge --check        # valida el .env y sale
-python3 -m zymo_bridge                # servicio completo (desde bridge/)
-python3 -m zymo_bridge --once         # un paso del poll, para debug
-python3 -m zymo_bridge --print-config # config con secretos enmascarados
+python3 -m buddy_bridge --check        # valida el .env y sale
+python3 -m buddy_bridge                # servicio completo (desde bridge/)
+python3 -m buddy_bridge --once         # un paso del poll, para debug
+python3 -m buddy_bridge --print-config # config con secretos enmascarados
 ```
 
 Tests:
@@ -24,7 +24,7 @@ python3 tools/run_tests.py --filter face -v
 
 ```
 bridge/
-  zymo_bridge/
+  buddy_bridge/
     config.py     .env + entorno, una sola puerta (entorno > .env > default)
     labels.py     actividad -> etiqueta de 40 chars (pura, sin I/O)
     events.py     ring de eventos + long-poll

@@ -28,6 +28,9 @@ PHASE = {
     "done": "ok",
     "idle": "idle",
     "bored": "idle",
+    # El calendario tiene fase propia: ni "necesito algo tuyo" (rojo) ni
+    # "trabajando" (ámbar). Violeta, que no se confunde con nada de la tabla.
+    "upcoming": "event",
 }
 
 # phase -> color RGB ya resuelto. El firmware no traduce nada.
@@ -36,6 +39,7 @@ LED = {
     "ok": (0, 255, 80),      # verde    - te contesté
     "ask": (255, 40, 40),    # rojo     - necesito algo tuyo
     "idle": (0, 180, 255),   # celeste  - standby
+    "event": (170, 80, 255), # violeta  - se te viene un evento
 }
 
 BUSY_STATES = ("thinking", "tool", "waiting")
@@ -68,7 +72,45 @@ class Face:
             "ts": now,
             "since": now,
             "last_busy": now,
+            # Carril del calendario. `calendar_until` es la reserva: mientras el
+            # reloj no la pase, el poll no puede pisar la cara.
+            "calendar_until": 0.0,
+            "calendar_event": None,
         }
+
+    # ------------------------------------------------------------------ calendario
+    def set_calendar(self, event) -> None:
+        """Marca (o desmarca) el evento que la cara debe mostrar.
+
+        Guarda el evento entero y no un booleano porque `snapshot()` necesita el
+        `remaining_ms` de CADA vuelta: la escalera del firmware se mueve sola
+        mientras el poll manda el mismo estado cada 3 s.
+
+        No llama a `set_state`: el calendario no crea la cara, la reclama en
+        `poll_once`. Si el bridge se cae justo acá, el próximo poll la levanta.
+        """
+        with self._lock:
+            self._state["calendar_event"] = event
+
+    def calendar_event(self):
+        with self._lock:
+            return self._state.get("calendar_event")
+
+    def calendar_active(self) -> bool:
+        """True si hay un evento vigente. Carril propio: manda mientras dure."""
+        with self._lock:
+            ev = self._state.get("calendar_event")
+            return ev is not None and self._state.get("calendar_until", 0) > time.time()
+
+    def claim_calendar(self, until: float) -> None:
+        """Reserva el carril hasta `until` (epoch). El poll lo respeta."""
+        with self._lock:
+            self._state["calendar_until"] = until
+
+    def release_calendar(self) -> None:
+        with self._lock:
+            self._state["calendar_until"] = 0.0
+            self._state["calendar_event"] = None
 
     # ------------------------------------------------------------------ lectura
     def state(self) -> str:
@@ -146,6 +188,22 @@ class Face:
         snap["elapsed"] = round(max(0.0, now - base), 1)
         snap["phase"] = phase_for(snap.get("state"))
         snap["led"] = led_for(snap["phase"])
+        # Un evento vigente reescribe los tres campos que la placa mira. Se hace
+        # ACÁ y no en `poll_once` porque el poll corre cada 3 s y `remaining_ms`
+        # tiene que estar fresco en cada GET: la escalera es una función del
+        # tiempo restante, no de cuántas veces latió el poll.
+        # Pero nunca le gana a un run propio: si le estás hablando a la placa, la
+        # placa te responde a vos. El reloj puede esperar dos segundos.
+        event = snap.get("calendar_event")
+        if (event is not None and snap.get("calendar_until", 0) > now
+                and snap.get("run_id") is None):
+            snap["state"] = "upcoming"
+            snap["label"] = event.summary
+            snap["phase"] = "event"
+            snap["led"] = led_for("event")
+            # `elapsed` con otro significado a propósito: en `upcoming` el
+            # firmware lo lee como tiempo RESTANTE al evento (ver buddy_anim.h).
+            snap["elapsed"] = round(max(0.0, event.start - now), 1)
         # sleep_hint: segundos de inactividad de Hermes. Insumo, NO orden de dormir:
         # el firmware suma su propio timer de IMU (docs/buddy-08).
         idle_since = snap.get("last_busy") or snap.get("since") or now

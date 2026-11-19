@@ -2,8 +2,8 @@
 
 import unittest
 
-from zymo_bridge.events import EventLog
-from zymo_bridge.face import IDLE_LABEL, Face, led_for, phase_for
+from buddy_bridge.events import EventLog
+from buddy_bridge.face import IDLE_LABEL, Face, led_for, phase_for
 
 
 def make(ttl=8.0):

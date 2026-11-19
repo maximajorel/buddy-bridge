@@ -2,7 +2,7 @@
 
 import unittest
 
-from zymo_bridge import labels
+from buddy_bridge import labels
 
 
 class LabelTest(unittest.TestCase):

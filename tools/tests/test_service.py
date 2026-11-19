@@ -2,11 +2,11 @@
 
 import unittest
 
-from zymo_bridge.config import Config
-from zymo_bridge.events import EventLog
-from zymo_bridge.face import Face
-from zymo_bridge.service import BridgeService
-from zymo_bridge.state_db import DbState
+from buddy_bridge.config import Config
+from buddy_bridge.events import EventLog
+from buddy_bridge.face import Face
+from buddy_bridge.service import BridgeService
+from buddy_bridge.state_db import DbState
 
 
 class FakeDb:

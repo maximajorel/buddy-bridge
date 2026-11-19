@@ -1,4 +1,4 @@
-"""Arranque del bridge: `python3 -m zymo_bridge`.
+"""Arranque del bridge: `python3 -m buddy_bridge`.
 
 Modos:
   (sin flags)            servicio completo: poll + HTTP
@@ -13,13 +13,14 @@ import argparse
 import sys
 import threading
 
+from .calendar import make_calendar
 from .config import Config, ConfigError, DEFAULT_ENV_FILE
 from .http_api import serve
 from .service import BridgeService
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(prog="python3 -m zymo_bridge", description=__doc__,
+    ap = argparse.ArgumentParser(prog="python3 -m buddy_bridge", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--env-file", default=None, help="ruta al .env (default: bridge/.env)")
     ap.add_argument("--check", action="store_true", help="validar config y salir")
@@ -45,11 +46,13 @@ def main(argv=None) -> int:
         print(f"[bridge] config OK ({config.env_file})")
         return 0
 
-    service = BridgeService(config)
+    service = BridgeService(config, calendar=make_calendar(config))
     if args.once:
         service.poll_once()
         print(service.face.snapshot())
         return 0
+    # El calendario tiene su propio hilo y arranca solo si hay credenciales.
+    service.start_calendar()
 
     if not config.hermes_key:
         print("[bridge] aviso: API_SERVER_KEY vacío, /buddy/ask va a fallar", flush=True)
@@ -59,7 +62,8 @@ def main(argv=None) -> int:
     server = serve(service, config)
     threading.Thread(target=service.run_forever, daemon=True).start()
     print(f"[bridge] escuchando en {config.bind}:{config.port} -> {config.hermes_url} "
-          f"(perfil default; ask {'on' if config.ask_enabled else 'off'})", flush=True)
+          f"(perfil default; ask {'on' if config.ask_enabled else 'off'}; "
+          f"calendario {'on' if config.calendar_enabled else 'off'})", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

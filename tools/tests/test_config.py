@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from zymo_bridge.config import Config, ConfigError, parse_env_text, read_env_file
+from buddy_bridge.config import Config, ConfigError, parse_env_text, read_env_file
 
 
 class ParseEnvTest(unittest.TestCase):

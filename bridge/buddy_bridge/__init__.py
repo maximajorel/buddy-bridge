@@ -8,14 +8,17 @@ El paquete está partido por responsabilidad, igual que el firmware del gadget:
     face.py      la cara: estado actual, phase y LED (lo que "es")
     hermes.py    cliente HTTP del API server
     state_db.py  lectura de solo lectura del state.db de Hermes
+    calendar.py         Google Calendar: evento próximo -> cara (sin IA, stdlib)
+    calendar_config.py  guardar credenciales desde la web (`.env` atómico)
     service.py   el hilo que decide la cara a partir de la DB y el agregado
     http_api.py  el contrato HTTP que consume la placa
-    __main__.py  arranque (`python3 -m zymo_bridge`)
+    __main__.py  arranque (`python3 -m buddy_bridge`)
 
 Reglas de diseño (no romper):
   - El bridge NO decide cuándo dormirse: manda `sleep_hint` y el firmware decide.
   - El bridge NO manda `bored` (ver docs/buddy-08-suenio-y-eventos.md).
   - Todo cambio de cara pasa por `face.set_state`, el único lugar que emite eventos.
+  - El calendario tiene carril propio (`calendar_until`): el poll no lo pisa.
 """
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"

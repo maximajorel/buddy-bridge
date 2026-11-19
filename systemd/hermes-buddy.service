@@ -11,7 +11,7 @@ Type=simple
 WorkingDirectory=/opt/buddy
 Environment=PYTHONUNBUFFERED=1
 Environment=HERMES_BUDDY_ENV_FILE=/opt/buddy/.env
-ExecStart=/usr/bin/python3 -m zymo_bridge
+ExecStart=/usr/bin/python3 -m buddy_bridge
 Restart=always
 RestartSec=5
 User=root

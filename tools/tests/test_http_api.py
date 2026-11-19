@@ -12,11 +12,11 @@ import unittest
 import urllib.error
 import urllib.request
 
-from zymo_bridge.config import Config
-from zymo_bridge.events import EventLog
-from zymo_bridge.face import Face
-from zymo_bridge.http_api import AuthGuard, serve
-from zymo_bridge.service import BridgeService
+from buddy_bridge.config import Config
+from buddy_bridge.events import EventLog
+from buddy_bridge.face import Face
+from buddy_bridge.http_api import AuthGuard, serve
+from buddy_bridge.service import BridgeService
 
 
 class FakeDb:

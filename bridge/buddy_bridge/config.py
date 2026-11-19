@@ -107,6 +107,21 @@ class Config:
     # vacío = /buddy/ask deshabilitado (el de solo lectura no alcanza para eso).
     ask_token: str = ""
 
+    # URL pública del bridge, sin barra final. Se usa para armar el redirect_uri
+    # del OAuth de Google; vacía = el dominio de producción.
+    public_url: str = ""
+
+    # Google Calendar. Las tres credenciales viven acá y no en la placa: el
+    # ESP32 no tiene flash cifrada y no necesita el `client_secret` para dibujar
+    # una cara. Vacías = el bridge funciona igual, sin calendario.
+    calendar_client_id: str = ""
+    calendar_client_secret: str = ""
+    calendar_refresh_token: str = ""
+    calendar_id: str = "primary"
+    calendar_lead_min: int = 60
+    calendar_grace_min: int = 5
+    calendar_poll_seconds: float = 60.0
+
     sources: dict = field(default_factory=dict, compare=False)
 
     # ------------------------------------------------------------------ carga
@@ -150,11 +165,24 @@ class Config:
             # permiso repartido. Si querés ask, va un token distinto.
             errors.append("BUDDY_ASK_TOKEN no puede ser igual a BUDDY_TOKEN")
 
+        public_url = (get("BUDDY_PUBLIC_URL") or "").strip().rstrip("/")
+        if public_url and not public_url.startswith(("http://", "https://")):
+            errors.append(f"BUDDY_PUBLIC_URL={public_url!r} debe empezar con http:// o https://")
+
         port = number("BUDDY_PORT", 8787, int)
         if not (1 <= port <= 65535):
             errors.append(f"BUDDY_PORT={port} fuera de rango (1-65535)")
 
         state_db = Path(get("BUDDY_STATE_DB") or "/opt/data/state.db")
+
+        cal_id = (get("GOOGLE_CALENDAR_ID") or "primary").strip() or "primary"
+        cal_lead = number("GOOGLE_CALENDAR_LEAD_MIN", 60, int)
+        # Un evento que dejó de merecer cara a los 60 min y vuelve a los 600 hace
+        # que la placa se pase 4 horas avisando: la ventana tiene techo.
+        if cal_lead > 720:
+            errors.append(f"GOOGLE_CALENDAR_LEAD_MIN={cal_lead} es más de 12 h; la cara no avisa tan temprano")
+        if cal_lead < 1:
+            errors.append(f"GOOGLE_CALENDAR_LEAD_MIN={cal_lead} tiene que ser al menos 1")
 
         if errors:
             raise ConfigError(errors)
@@ -164,6 +192,7 @@ class Config:
             hermes_key=(get("API_SERVER_KEY") or "").strip(),
             buddy_token=read_token,
             ask_token=ask_token,
+            public_url=public_url,
             buddy_session=(get("BUDDY_SESSION") or "esp32-buddy").strip(),
             bind=(get("BUDDY_BIND") or "0.0.0.0").strip(),
             port=port,
@@ -175,6 +204,13 @@ class Config:
             tool_window=number("BUDDY_TOOL_WINDOW", 12.0, float),
             turn_grace=number("BUDDY_TURN_GRACE", 2.5, float),
             state_db=state_db,
+            calendar_client_id=(get("GOOGLE_CLIENT_ID") or "").strip(),
+            calendar_client_secret=(get("GOOGLE_CLIENT_SECRET") or "").strip(),
+            calendar_refresh_token=(get("GOOGLE_REFRESH_TOKEN") or "").strip(),
+            calendar_id=cal_id,
+            calendar_lead_min=cal_lead,
+            calendar_grace_min=number("GOOGLE_CALENDAR_GRACE_MIN", 5, int),
+            calendar_poll_seconds=max(15.0, number("GOOGLE_CALENDAR_POLL_SECONDS", 60.0, float)),
             env_file=env_file,
             sources={k: ("entorno" if k in environ and environ[k] != "" else "archivo")
                      for k in ("HERMES_URL", "API_SERVER_KEY", "BUDDY_TOKEN") if get(k)},
@@ -186,6 +222,23 @@ class Config:
     def ask_enabled(self) -> bool:
         return bool(self.ask_token)
 
+    @property
+    def calendar_enabled(self) -> bool:
+        """Las tres credenciales o ninguna: media credencial es una licencia para fallar."""
+        return bool(self.calendar_client_id and self.calendar_client_secret
+                    and self.calendar_refresh_token)
+
+    def set_calendar_credentials(self) -> "Config":
+        """Devuelve una copia con las credenciales de Google ya cargadas.
+
+        `Config` es frozen porque se arma una vez al arrancar. Guardar desde la
+        web no puede romper eso: se valida, se escribe el `.env` y se devuelve
+        una copia nueva, que es la que el servicio usa desde ese momento sin
+        reiniciar.
+        """
+        from dataclasses import replace
+        return replace(self)
+
     def redacted(self) -> dict:
         """Config para logs: los secretos se muestran como presencia, nunca valor."""
         def mask(v):
@@ -195,6 +248,7 @@ class Config:
             "api_server_key": mask(self.hermes_key),
             "buddy_token": mask(self.buddy_token),
             "buddy_ask_token": mask(self.ask_token),
+            "public_url": self.public_url or "<default>",
             "buddy_session": self.buddy_session,
             "bind": self.bind,
             "port": self.port,

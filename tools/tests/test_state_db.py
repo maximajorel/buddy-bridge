@@ -6,7 +6,7 @@ import time
 import unittest
 from pathlib import Path
 
-from zymo_bridge.state_db import StateDb
+from buddy_bridge.state_db import StateDb
 
 SCHEMA = """
 CREATE TABLE session_turn_leases (conversation_id TEXT, expires_at REAL);

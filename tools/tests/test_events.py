@@ -4,7 +4,7 @@ import threading
 import time
 import unittest
 
-from zymo_bridge.events import EventLog
+from buddy_bridge.events import EventLog
 
 
 class EventLogTest(unittest.TestCase):
